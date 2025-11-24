@@ -1,0 +1,5 @@
+{
+  "name": "Copy of PhotoSort AI",
+  "description": "Automatically organize and group your photos into albums using Gemini Vision AI. Upload a folder, get it sorted by semantic content.",
+  "requestFramePermissions": []
+}
