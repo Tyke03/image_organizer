@@ -33,8 +33,10 @@ export const analyzeImage = async (base64Image: string): Promise<{ tags: string[
   
   while (attempt < MAX_RETRIES) {
     try {
-      const response = await openrouter.chat.completions.create({
-        models: VISION_MODELS, // OpenRouter tries these in order automatically
+      // OpenRouter extends OpenAI API with 'models' array for automatic fallback
+      const response = await (openrouter.chat.completions.create as any)({
+        model: VISION_MODELS[0], // Primary model (required by OpenAI SDK)
+        models: VISION_MODELS, // OpenRouter-specific: tries these in order automatically
         messages: [
           {
             role: 'user',
