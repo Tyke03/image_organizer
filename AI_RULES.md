@@ -1,7 +1,7 @@
 # AI_RULES.md - PhotoSort AI
 
 ## Project Overview
-PhotoSort AI is a client-side React application that uses AI vision models to automatically analyze and organize photos into semantic albums based on visual content. The app implements a multi-tier fallback system to ensure reliability even when primary APIs hit quota limits.
+PhotoSort AI is a client-side React application that uses AI vision models to automatically analyze and organize photos into semantic albums based on visual content. The app uses OpenRouter as a unified API gateway to access multiple AI vision models with automatic fallback handling.
 
 ## Tech Stack
 
@@ -9,10 +9,10 @@ PhotoSort AI is a client-side React application that uses AI vision models to au
 - **Build Tool**: Vite 6.2.0 for fast development and optimized production builds
 - **Styling**: Tailwind CSS (via CDN) for utility-first responsive design
 - **Icons**: lucide-react for consistent, lightweight SVG icons throughout the UI
-- **AI/ML (Multi-Tier)**: 
-  - **Primary**: @google/genai (Gemini 2.5 Flash) - Fast, cost-effective, good quality
-  - **Fallback**: openai (GPT-4 Vision) - Reliable, proven, handles high load
-  - **Emergency**: replicate (LLaVA/BLIP) - Open source, pay-per-use backup
+- **AI/ML**: OpenRouter unified API with automatic multi-model fallback
+  - **Primary**: `google/gemini-2.0-flash-exp:free` - Free, fast, good quality
+  - **Fallback**: `anthropic/claude-3.5-sonnet` - Reliable, high quality
+  - **Emergency**: `openai/gpt-4o` - Industry standard, proven reliability
 - **File Processing**: Browser-native Canvas API for image resizing/compression, JSZip for creating downloadable archives
 - **State Management**: React useState hooks (no external state library needed)
 - **Routing**: None - single-page application with step-based navigation
@@ -28,49 +28,52 @@ PhotoSort AI is a client-side React application that uses AI vision models to au
 
 ### Image Processing
 - **ALWAYS** use the Canvas API for client-side image resizing and format conversion
-- **ALWAYS** resize images to 512px max dimension before sending to any vision API (reduces tokens and quota issues)
+- **ALWAYS** resize images to 512px max dimension before sending to vision API (reduces tokens and quota issues)
 - **ALWAYS** convert images to JPEG format with 0.7 quality for API calls
 - **DO NOT** send full-resolution images to any API
 
-### AI/API Integration - Multi-Model Fallback System
+### AI/API Integration - OpenRouter Unified Gateway
 
-#### Primary Model: Gemini 2.5 Flash
-- **ALWAYS** use @google/genai package as the first choice
-- **ALWAYS** implement exponential backoff with retry logic for API failures
-- **ALWAYS** handle 429 (quota exceeded) errors by switching to fallback model
-- **ALWAYS** use structured JSON output with responseSchema for consistent tag extraction
+#### OpenRouter Setup
+- **ALWAYS** use the `openai` npm package configured with OpenRouter's base URL
+- **ALWAYS** set `baseURL: 'https://openrouter.ai/api/v1'` when initializing the client
+- **ALWAYS** use a single `OPENROUTER_API_KEY` environment variable
+- **DO NOT** install separate SDKs for Gemini, Claude, or GPT - OpenRouter handles all models
+
+#### Model Selection Strategy
+- **ALWAYS** provide an array of fallback models in order of preference (cost → reliability)
+- **ALWAYS** start with free/cheap models and fallback to premium models
+- **ALWAYS** use the `models` array parameter for automatic fallback handling
+- **DO NOT** manually implement retry logic - OpenRouter handles this automatically
+
+#### Recommended Model Fallback Order
+```javascript
+models: [
+  'google/gemini-2.0-flash-exp:free',  // Tier 1: Free, fast
+  'anthropic/claude-3.5-sonnet',        // Tier 2: Premium, reliable
+  'openai/gpt-4o'                       // Tier 3: Industry standard
+]
+```
+
+#### Vision API Usage
+- **ALWAYS** send images as base64 data URLs in the `image_url` content type
+- **ALWAYS** use structured prompts requesting JSON output for consistent tag extraction
+- **ALWAYS** handle both text and image content in the messages array
+- **ALWAYS** track which model was used via the response's `model` field
 - **DO NOT** make parallel API calls - process images sequentially to avoid rate limits
 
-#### Fallback Model: OpenAI GPT-4 Vision
-- **ALWAYS** install and configure `openai` package as backup
-- **ALWAYS** switch to OpenAI when Gemini returns 429 errors or fails repeatedly
-- **ALWAYS** use the same prompt structure and tag extraction format
-- **ALWAYS** track which model was used for each photo (add `modelUsed` field to PhotoFile type)
-- **DO NOT** use OpenAI as primary due to higher cost
-
-#### Emergency Backup: Replicate (Open Source Models)
-- **ALWAYS** install and configure `replicate` package as final fallback
-- **ALWAYS** use models like LLaVA-1.5 or Salesforce BLIP for vision tasks
-- **ALWAYS** implement this as last resort when both Gemini and OpenAI fail
-- **ALWAYS** expect slower response times due to cold starts
-- **DO NOT** rely on this as primary due to inconsistent quality
-
-#### Fallback Logic Implementation Rules
-- **ALWAYS** implement a `VisionModelService` abstraction layer that handles model switching
-- **ALWAYS** track failure counts per model to avoid repeatedly hitting failed services
-- **ALWAYS** log which model was used for each successful analysis
-- **ALWAYS** provide user feedback when switching models (e.g., "Using backup AI model...")
-- **ALWAYS** reset to primary model after successful processing batch
-- **DO NOT** switch models mid-batch unless absolutely necessary
+#### Error Handling
+- **ALWAYS** implement exponential backoff for transient errors
+- **ALWAYS** log which model successfully processed each image
+- **ALWAYS** provide user feedback when fallback models are being used
+- **ALWAYS** collect failed images for manual retry
+- **DO NOT** assume the primary model will always be available
 
 #### API Key Management
-- **ALWAYS** store all API keys in environment variables:
-  - `GEMINI_API_KEY` (primary)
-  - `OPENAI_API_KEY` (fallback)
-  - `REPLICATE_API_TOKEN` (emergency)
-- **ALWAYS** check for API key availability before attempting to use a model
-- **ALWAYS** provide clear error messages when API keys are missing
-- **DO NOT** hardcode any API keys in source files
+- **ALWAYS** store the OpenRouter API key in environment variable: `OPENROUTER_API_KEY`
+- **ALWAYS** check for API key availability before making requests
+- **ALWAYS** provide clear error messages when API key is missing
+- **DO NOT** hardcode API keys in source files
 
 ### File Handling
 - **ALWAYS** use JSZip for creating downloadable ZIP archives of organized photos
@@ -80,25 +83,25 @@ PhotoSort AI is a client-side React application that uses AI vision models to au
 ### State & Data Flow
 - **ALWAYS** use React useState for component state management
 - **ALWAYS** keep photo metadata (PhotoFile type) separate from album organization (Album type)
-- **ALWAYS** track which AI model was used for each photo analysis
+- **ALWAYS** track which AI model was used for each photo analysis (add `modelUsed` field)
 - **DO NOT** add Redux, Zustand, or other state management libraries unless the app grows significantly more complex
 
 ### Code Organization
-- **ALWAYS** place utility functions in `/services` directory (imageUtils, geminiService, openaiService, replicateService, visionModelService)
+- **ALWAYS** place utility functions in `/services` directory (imageUtils, openRouterService, clusteringService)
 - **ALWAYS** place React components in `/components` directory
 - **ALWAYS** define TypeScript types in `types.ts` at the root level
-- **ALWAYS** create a unified `visionModelService.ts` that orchestrates fallback logic
+- **ALWAYS** create a single `openRouterService.ts` that handles all vision API calls
 - **DO NOT** mix business logic with UI components - keep them separated
 
 ### Performance & UX
 - **ALWAYS** show real-time processing progress with visual feedback
 - **ALWAYS** implement throttling/rate limiting to respect API quotas
 - **ALWAYS** provide retry mechanisms for failed photos
-- **ALWAYS** inform users when switching to backup AI models
+- **ALWAYS** inform users when fallback models are being used
 - **DO NOT** block the UI during processing - use async/await properly
 
 ### Environment & Configuration
-- **ALWAYS** load all AI API keys from environment variables (process.env.GEMINI_API_KEY, process.env.OPENAI_API_KEY, process.env.REPLICATE_API_TOKEN)
+- **ALWAYS** load the OpenRouter API key from environment variable (process.env.OPENROUTER_API_KEY)
 - **ALWAYS** use Vite's environment variable system (defined in vite.config.ts)
 - **ALWAYS** gracefully handle missing API keys with clear error messages
 - **DO NOT** hardcode API keys or sensitive data in source files
@@ -108,7 +111,7 @@ PhotoSort AI is a client-side React application that uses AI vision models to au
 1. **Client-Side Only**: All processing happens in the browser - no backend server required
 2. **Sequential Processing**: Photos are analyzed one at a time to avoid API rate limits
 3. **Adaptive Throttling**: Delay between API calls dynamically adjusts based on success/failure rates
-4. **Multi-Tier AI Fallback**: Three-layer redundancy (Gemini → OpenAI → Replicate) ensures app never completely fails
+4. **OpenRouter Unified Gateway**: Single API key with automatic multi-model fallback eliminates complex SDK management
 5. **Smart Clustering**: Photos are grouped into albums of ~20 images using tag-based clustering with merge logic
 6. **Graceful Degradation**: Failed photos are collected in a separate album with retry capability
 7. **Model Tracking**: Each photo tracks which AI model successfully analyzed it for debugging and cost analysis
@@ -119,49 +122,100 @@ PhotoSort AI is a client-side React application that uses AI vision models to au
 - **New Processing Logic**: Add to `/services` with proper TypeScript types
 - **New Photo Metadata**: Extend the `PhotoFile` interface in `types.ts`
 - **New Album Logic**: Modify `clusteringService.ts` with clear comments explaining the algorithm
-- **New AI Models**: Add new service file in `/services` and integrate into `visionModelService.ts` fallback chain
+- **New AI Models**: Add to the `models` array in `openRouterService.ts` - no new SDK needed
 
-## Multi-Model Fallback Architecture
+## OpenRouter Multi-Model Architecture
 
-### Tier 1 (Primary): Gemini 2.5 Flash
+### Why OpenRouter?
+- **Single API Key**: One key for all AI providers (Gemini, Claude, GPT-4, etc.)
+- **Automatic Fallback**: Built-in retry logic across multiple models
+- **Cost Optimization**: Automatically routes to cheapest available model
+- **OpenAI-Compatible**: Use familiar OpenAI SDK with different base URL
+- **Unified Billing**: One invoice for all AI usage across providers
+
+### Model Tier Strategy
+
+#### Tier 1 (Primary): Gemini 2.0 Flash (Free)
+- **Model ID**: `google/gemini-2.0-flash-exp:free`
 - **Use Case**: Default for all image analysis
-- **Advantages**: Fast, cost-effective, good quality
-- **Quota Handling**: Exponential backoff, switch to Tier 2 on repeated 429 errors
+- **Advantages**: Free, fast, good quality
+- **Cost**: $0.00 per request
 
-### Tier 2 (Fallback): OpenAI GPT-4 Vision
-- **Use Case**: When Gemini quota is exhausted or fails repeatedly
-- **Advantages**: Highly reliable, proven uptime, handles high load
-- **Cost**: Higher per-request cost, use only when necessary
+#### Tier 2 (Fallback): Claude 3.5 Sonnet
+- **Model ID**: `anthropic/claude-3.5-sonnet`
+- **Use Case**: When Gemini quota is exhausted or fails
+- **Advantages**: Highly reliable, excellent vision capabilities
+- **Cost**: ~$3 per 1M input tokens
 
-### Tier 3 (Emergency): Replicate (LLaVA/BLIP)
-- **Use Case**: When both Gemini and OpenAI are unavailable
-- **Advantages**: Open source, pay-per-use, no hard quotas
-- **Limitations**: Slower cold starts, less consistent quality
+#### Tier 3 (Emergency): GPT-4o
+- **Model ID**: `openai/gpt-4o`
+- **Use Case**: When both Gemini and Claude are unavailable
+- **Advantages**: Industry standard, proven reliability
+- **Cost**: ~$2.50 per 1M input tokens
 
-### Fallback Decision Tree
+### Fallback Flow
 ```
-1. Try Gemini with exponential backoff (max 3 retries)
-2. If 429 error or repeated failures → Switch to OpenAI
-3. If OpenAI fails → Try Replicate
+1. OpenRouter tries Gemini (free tier)
+2. If fails → Automatically tries Claude
+3. If fails → Automatically tries GPT-4o
 4. If all fail → Mark photo as error, allow manual retry
-5. After successful batch → Reset to Gemini for next batch
+5. Response includes which model was actually used
+```
+
+### Implementation Pattern
+```typescript
+import OpenAI from 'openai';
+
+const openrouter = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+const response = await openrouter.chat.completions.create({
+  models: [
+    'google/gemini-2.0-flash-exp:free',
+    'anthropic/claude-3.5-sonnet',
+    'openai/gpt-4o'
+  ],
+  messages: [{
+    role: 'user',
+    content: [
+      { type: 'text', text: 'Analyze this image and return 5-10 tags...' },
+      { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } }
+    ]
+  }],
+  response_format: { type: 'json_object' }
+});
+
+// Track which model was actually used
+const modelUsed = response.model;
 ```
 
 ## DO NOT
 
-- Add server-side code or API routes (this is a pure client-side app)
+- Add multiple AI provider SDKs (OpenRouter handles all providers)
+- Manually implement fallback logic (OpenRouter does this automatically)
 - Install UI component libraries (shadcn/ui, MUI, etc.) - build custom with Tailwind
 - Add routing libraries (React Router, etc.) - use step-based navigation
 - Make the app more complex than necessary - keep it simple and focused
-- Use multiple AI models simultaneously (sequential fallback only)
-- Ignore API quota limits - always implement proper throttling and fallback logic
+- Ignore API quota limits - always implement proper throttling
 - Skip tracking which model was used - this is critical for debugging and cost analysis
 
 ## Cost Optimization Guidelines
 
-- **ALWAYS** prefer Gemini 2.5 Flash when available (lowest cost)
-- **ALWAYS** resize images to 512px before sending to any API
+- **ALWAYS** prefer free models when available (Gemini free tier)
+- **ALWAYS** resize images to 512px before sending to API
 - **ALWAYS** track API usage per model for cost analysis
 - **ALWAYS** implement aggressive throttling to avoid unnecessary API calls
-- **DO NOT** use premium models (GPT-4, Claude) unless fallback is necessary
+- **ALWAYS** use OpenRouter's automatic routing to minimize costs
 - **DO NOT** send full-resolution images to any API
+- **DO NOT** make unnecessary API calls - cache results when possible
+
+## OpenRouter-Specific Best Practices
+
+- **ALWAYS** include your app name in headers: `HTTP-Referer: https://your-app.com`
+- **ALWAYS** monitor which models are being used via response tracking
+- **ALWAYS** check OpenRouter's model availability before deploying
+- **ALWAYS** use the `models` array for automatic fallback instead of manual retry logic
+- **DO NOT** assume all models support the same features (check model capabilities)
+- **DO NOT** hardcode model IDs - make them configurable for easy updates

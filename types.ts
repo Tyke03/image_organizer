@@ -4,6 +4,7 @@ export interface PhotoFile {
   previewUrl: string;
   status: 'pending' | 'processing' | 'done' | 'error';
   tags: string[];
+  modelUsed?: string; // Track which AI model was used (e.g., 'google/gemini-2.0-flash-exp:free')
   error?: string;
 }
 

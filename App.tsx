@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AppStep, PhotoFile, ProcessingStats, Album } from './types';
 import { createPreview, revokePreview, resizeAndConvert } from './services/imageUtils';
-import { analyzeImage } from './services/geminiService';
+import { analyzeImage } from './services/openRouterService';
 import { organizePhotos } from './services/clusteringService';
 
 // Components
@@ -35,7 +34,8 @@ const App: React.FC = () => {
       file,
       previewUrl: createPreview(file),
       status: 'pending',
-      tags: []
+      tags: [],
+      modelUsed: undefined
     }));
 
     setPhotos(newPhotos);
@@ -68,16 +68,16 @@ const App: React.FC = () => {
       let success = false;
 
       try {
-        // 1. Resize and Convert (now 512px)
+        // 1. Resize and Convert (512px)
         const base64 = await resizeAndConvert(photo.file);
         
-        // 2. Analyze with Gemini
-        const tags = await analyzeImage(base64);
+        // 2. Analyze with OpenRouter (automatic multi-model fallback)
+        const { tags, modelUsed } = await analyzeImage(base64);
         
         // Update status to done
         setPhotos(current => current.map(p => 
           p.id === photo.id 
-            ? { ...p, status: tags.length > 0 ? 'done' : 'error', tags: tags } 
+            ? { ...p, status: tags.length > 0 ? 'done' : 'error', tags, modelUsed } 
             : p
         ));
         success = true;
@@ -174,7 +174,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4 text-sm font-medium text-slate-400">
              <span className="flex items-center gap-1.5">
                <Sparkles className="w-4 h-4 text-amber-400" />
-               Powered by Gemini 2.5 Flash
+               Powered by OpenRouter
              </span>
           </div>
         </div>
@@ -187,7 +187,7 @@ const App: React.FC = () => {
             <div className="mb-8 text-center max-w-lg">
               <h2 className="text-4xl font-bold text-white mb-4">Organize Chaos. Instantly.</h2>
               <p className="text-lg text-slate-400">
-                Upload a folder of photos. Gemini Vision AI will analyze them and group them into semantic albums automatically.
+                Upload a folder of photos. AI will analyze them and group them into semantic albums automatically.
               </p>
             </div>
             <DropZone onFilesSelected={handleFilesSelected} />
@@ -199,7 +199,7 @@ const App: React.FC = () => {
              {isQuotaMode && (
                  <div className="max-w-6xl mx-auto mb-4 bg-amber-500/10 border border-amber-500/50 text-amber-400 p-3 rounded-lg flex items-center gap-3">
                      <AlertTriangle className="w-5 h-5" />
-                     <span className="text-sm font-medium">API Quota Limits detected. Slowing down processing to ensure completion...</span>
+                     <span className="text-sm font-medium">API rate limits detected. Using backup models and slowing down processing...</span>
                  </div>
              )}
              <ProcessingView photos={photos} stats={processingStats} />
@@ -221,7 +221,7 @@ const App: React.FC = () => {
       {/* Footer */}
       <footer className="border-t border-slate-800 py-6 text-center text-slate-600 text-sm">
         <p>
-            Gemini 2.5 Flash is running in your browser session. 
+            Multi-model AI vision powered by OpenRouter (Gemini, Claude, GPT-4).
         </p>
       </footer>
     </div>
