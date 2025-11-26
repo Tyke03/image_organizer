@@ -23,12 +23,12 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Analyzes an image using OpenRouter's multi-model vision API with automatic fallback.
- * Returns an array of semantic tags describing the image content.
+ * Returns a description and an array of semantic tags describing the image content.
  * 
  * @param base64Image - Base64 encoded JPEG image (512px max dimension)
- * @returns Array of lowercase tags, or empty array on failure
+ * @returns Object containing description, tags, and the model used.
  */
-export const analyzeImage = async (base64Image: string): Promise<{ tags: string[], modelUsed: string }> => {
+export const analyzeImage = async (base64Image: string): Promise<{ description: string, tags: string[], modelUsed: string }> => {
   let attempt = 0;
   
   while (attempt < MAX_RETRIES) {
@@ -43,10 +43,10 @@ export const analyzeImage = async (base64Image: string): Promise<{ tags: string[
             content: [
               {
                 type: 'text',
-                text: `Analyze this image and return 5-10 descriptive tags as a JSON array.
+                text: `Analyze this image. Provide a concise, single-sentence description of the main subject and context. Then, return 5-10 descriptive tags as a JSON array.
                        Mix broad categories (e.g., 'outdoors', 'portrait') with specific subjects (e.g., 'cat', 'beach').
-                       Return ONLY a JSON object with a "tags" array. All tags should be lowercase.
-                       Example: {"tags": ["beach", "sunset", "ocean", "vacation", "tropical"]}`
+                       Return ONLY a JSON object with two keys: "description" (string) and "tags" (array of strings). All tags should be lowercase.
+                       Example: {"description": "A serene beach at sunset with palm trees.", "tags": ["beach", "sunset", "ocean", "tropical", "palm trees"]}`
               },
               {
                 type: 'image_url',
@@ -58,7 +58,7 @@ export const analyzeImage = async (base64Image: string): Promise<{ tags: string[
           }
         ],
         response_format: { type: 'json_object' },
-        max_tokens: 200,
+        max_tokens: 300, // Increased max_tokens to accommodate description + tags
         temperature: 0.3
       });
 
@@ -71,6 +71,7 @@ export const analyzeImage = async (base64Image: string): Promise<{ tags: string[
 
       // Parse JSON response
       const parsed = JSON.parse(content);
+      const description = (parsed.description || '') as string;
       const tags = (parsed.tags || []) as string[];
       
       // Clean and deduplicate tags
@@ -78,13 +79,13 @@ export const analyzeImage = async (base64Image: string): Promise<{ tags: string[
         new Set(tags.map(t => t.toLowerCase().trim()).filter(t => t.length > 0))
       );
 
-      if (uniqueTags.length === 0) {
-        console.warn('No tags extracted from response');
-        return { tags: [], modelUsed };
+      if (description.length === 0 && uniqueTags.length === 0) {
+        console.warn('No description or tags extracted from response');
+        return { description: '', tags: [], modelUsed };
       }
 
       console.log(`✓ Image analyzed successfully using ${modelUsed}`);
-      return { tags: uniqueTags, modelUsed };
+      return { description, tags: uniqueTags, modelUsed };
 
     } catch (error: any) {
       attempt++;
@@ -114,7 +115,7 @@ export const analyzeImage = async (base64Image: string): Promise<{ tags: string[
     }
   }
 
-  return { tags: [], modelUsed: 'failed' };
+  return { description: '', tags: [], modelUsed: 'failed' };
 };
 
 /**

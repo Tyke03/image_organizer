@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AppStep, PhotoFile, ProcessingStats, Album } from './types';
 import { createPreview, revokePreview, resizeAndConvert } from './services/imageUtils';
-import { analyzeImage } from './services/openRouterService';
+import { analyzeImage } from './services/imageAnalysisTool'; // Updated import
 import { organizePhotos } from './services/clusteringService';
 
 // Components
@@ -34,6 +34,7 @@ const App: React.FC = () => {
       file,
       previewUrl: createPreview(file),
       status: 'pending',
+      description: undefined, // Initialize new field
       tags: [],
       modelUsed: undefined
     }));
@@ -71,13 +72,13 @@ const App: React.FC = () => {
         // 1. Resize and Convert (512px)
         const base64 = await resizeAndConvert(photo.file);
         
-        // 2. Analyze with OpenRouter (automatic multi-model fallback)
-        const { tags, modelUsed } = await analyzeImage(base64);
+        // 2. Analyze with Image Analysis & Tagging Tool (OpenRouter with fallback)
+        const { description, tags, modelUsed } = await analyzeImage(base64);
         
         // Update status to done
         setPhotos(current => current.map(p => 
           p.id === photo.id 
-            ? { ...p, status: tags.length > 0 ? 'done' : 'error', tags, modelUsed } 
+            ? { ...p, status: (description || tags.length > 0) ? 'done' : 'error', description, tags, modelUsed } 
             : p
         ));
         success = true;
@@ -135,7 +136,7 @@ const App: React.FC = () => {
   };
 
   const handleRetryFailed = () => {
-    const failedPhotos = photos.filter(p => p.status === 'error' || (p.status === 'done' && p.tags.length === 0));
+    const failedPhotos = photos.filter(p => p.status === 'error' || (p.status === 'done' && (p.description?.length === 0 && p.tags.length === 0)));
     if (failedPhotos.length === 0) return;
 
     // Reset status

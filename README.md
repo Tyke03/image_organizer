@@ -4,17 +4,33 @@
 
 # PhotoSort AI - Intelligent Photo Organization
 
-Automatically organize and group your photos into semantic albums using AI vision models. Upload a folder, get it sorted by visual content - all powered by OpenRouter's unified AI gateway.
+Automatically organize and group your photos into semantic albums using AI vision models. Upload a folder, get it sorted by visual content - all powered by OpenRouter's unified AI gateway. The application is now structured into modular tools for better development and testing.
 
 ## Features
 
-- 🤖 **Multi-Model AI Vision**: Automatic fallback across Gemini, Claude, and GPT-4
-- 🆓 **Free Tier Available**: Uses free Gemini model by default
-- 📦 **Smart Clustering**: Groups photos into ~20-image albums based on visual similarity
-- 🔄 **Automatic Retry**: Failed photos can be retried with one click
-- 💾 **ZIP Export**: Download organized albums as a ZIP file
-- 🎨 **Beautiful UI**: Modern, responsive interface built with Tailwind CSS
-- 🔒 **Privacy First**: All processing happens in your browser
+- 🤖 **Multi-Model AI Vision**: Automatic fallback across Gemini, Claude, and GPT-4 via OpenRouter.
+- 🆓 **Free Tier Available**: Uses free Gemini model by default.
+- 📦 **Smart Clustering**: Groups photos into ~20-image albums based on visual similarity.
+- 🔄 **Automatic Retry**: Failed photos can be retried with one click.
+- 💾 **ZIP Export**: Download organized albums as a ZIP file.
+- 🎨 **Beautiful UI**: Modern, responsive interface built with Tailwind CSS.
+- 🔒 **Privacy First**: All processing happens in your browser.
+
+## Modular Workflow Tools
+
+The application's core AI functionalities are now separated into distinct, independently useful tools:
+
+### 1. Image Analysis & Tagging Tool (`services/imageAnalysisTool.ts`)
+-   **Purpose:** Analyzes a single image using OpenRouter's multi-model vision API to extract a concise description and relevant tags.
+-   **Inputs:** Base64 encoded JPEG image data.
+-   **Outputs:** An object containing the image `description`, `tags` (array of strings), and the `modelUsed` for analysis.
+-   This tool handles all direct interaction with the OpenRouter API, including model fallback and retries.
+
+### 2. Image Grouping & Clustering Tool (`services/clusteringService.ts`)
+-   **Purpose:** Organizes a collection of images into distinct albums based on their extracted descriptions and tags.
+-   **Inputs:** A list of image metadata (including `id`, `description`, `tags`) from the Image Analysis & Tagging Tool.
+-   **Outputs:** A list of `Album` objects and any `ungrouped_image_ids`.
+-   This tool runs entirely client-side, applying clustering algorithms to group semantically related images.
 
 ## Tech Stack
 
@@ -57,13 +73,10 @@ Automatically organize and group your photos into semantic albums using AI visio
 
 ## How It Works
 
-1. **Upload**: Drag and drop a folder of photos or select multiple images
-2. **AI Analysis**: Each photo is analyzed using OpenRouter's vision models
-   - Primary: Gemini 2.0 Flash (Free)
-   - Fallback: Claude 3.5 Sonnet
-   - Emergency: GPT-4o
-3. **Smart Clustering**: Photos are grouped into semantic albums based on visual tags
-4. **Download**: Export organized albums as a ZIP file
+1. **Upload**: Drag and drop a folder of photos or select multiple images.
+2. **AI Analysis (Tool 1)**: Each photo is analyzed by the `Image Analysis & Tagging Tool` using OpenRouter's vision models (Gemini, Claude, GPT-4 fallback). It extracts a description and tags.
+3. **Smart Clustering (Tool 2)**: The `Image Grouping & Clustering Tool` then processes the descriptions and tags to group photos into semantic albums.
+4. **Download**: Export organized albums as a ZIP file.
 
 ## OpenRouter Configuration
 
@@ -91,10 +104,10 @@ photosort-ai/
 │   │   ├── DropZone.tsx
 │   │   ├── ProcessingView.tsx
 │   │   └── ResultsView.tsx
-│   ├── services/            # Business logic
-│   │   ├── imageUtils.ts    # Image processing
-│   │   ├── openRouterService.ts  # AI vision API
-│   │   └── clusteringService.ts  # Album organization
+│   ├── services/            # Business logic (modular tools)
+│   │   ├── imageUtils.ts    # Image processing utilities
+│   │   ├── imageAnalysisTool.ts  # Tool 1: AI vision API interaction
+│   │   └── clusteringService.ts  # Tool 2: Album organization logic
 │   ├── types.ts             # TypeScript types
 │   └── App.tsx              # Main app component
 ├── AI_RULES.md              # Development guidelines
@@ -118,25 +131,25 @@ npm run preview
 
 ## Cost Optimization
 
-- Images are automatically resized to 512px before analysis (reduces API costs)
-- Free Gemini model is used by default
-- Fallback to premium models only when necessary
-- Sequential processing prevents rate limit issues
+- Images are automatically resized to 512px before analysis (reduces API costs).
+- Free Gemini model is used by default.
+- Fallback to premium models only when necessary.
+- Sequential processing prevents rate limit issues.
 
 ## Troubleshooting
 
 ### "API key not configured" error
-- Make sure you've created `.env.local` with your OpenRouter API key
-- Restart the dev server after adding the key
+- Make sure you've created `.env.local` with your OpenRouter API key.
+- Restart the dev server after adding the key.
 
 ### Photos failing to process
-- Check your OpenRouter account has credits/quota
-- The app will automatically try fallback models
-- Use the "Retry Failed Photos" button to reprocess errors
+- Check your OpenRouter account has credits/quota.
+- The app will automatically try fallback models.
+- Use the "Retry Failed Photos" button to reprocess errors.
 
 ### Slow processing
-- This is normal - images are processed sequentially to avoid rate limits
-- The app automatically adjusts speed based on API response times
+- This is normal - images are processed sequentially to avoid rate limits.
+- The app automatically adjusts speed based on API response times.
 
 ## Contributing
 

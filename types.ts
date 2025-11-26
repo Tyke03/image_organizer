@@ -3,6 +3,7 @@ export interface PhotoFile {
   file: File;
   previewUrl: string;
   status: 'pending' | 'processing' | 'done' | 'error';
+  description?: string; // New: A brief description of the image
   tags: string[];
   modelUsed?: string; // Track which AI model was used (e.g., 'google/gemini-2.0-flash-exp:free')
   error?: string;
