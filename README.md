@@ -1,166 +1,94 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Local Image Tags
 
-# PhotoSort AI - Intelligent Photo Organization
+Personal local image tag library. Indexes folders recursively with Ollama vision,
+stores tags in SQLite, and supports progressive AND tag search. NSFW-friendly — no cloud AI.
 
-Automatically organize and group your photos into semantic albums using AI vision models. Upload a folder, get it sorted by visual content - all powered by OpenRouter's unified AI gateway. The application is now structured into modular tools for better development and testing.
+Windows-oriented utility (Reveal in Explorer) with cross-platform node code.
 
-## Features
+## Stack
 
-- 🤖 **Multi-Model AI Vision**: Automatic fallback across Gemini, Claude, and GPT-4 via OpenRouter.
-- 🆓 **Free Tier Available**: Uses free Gemini model by default.
-- 📦 **Smart Clustering**: Groups photos into ~20-image albums based on visual similarity.
-- 🔄 **Automatic Retry**: Failed photos can be retried with one click.
-- 💾 **ZIP Export**: Download organized albums as a ZIP file.
-- 🎨 **Beautiful UI**: Modern, responsive interface built with Tailwind CSS.
-- 🔒 **Privacy First**: All processing happens in your browser.
+- server/ — Express + TypeScript (tsx) + better-sqlite3 + sharp
+- client/ — Vite + React + TypeScript + Tailwind
+- workspaces — root scripts run API :8787 and Vite :5173 together
 
-## Modular Workflow Tools
+## Prerequisites
 
-The application's core AI functionalities are now separated into distinct, independently useful tools:
-
-### 1. Image Analysis & Tagging Tool (`services/imageAnalysisTool.ts`)
--   **Purpose:** Analyzes a single image using OpenRouter's multi-model vision API to extract a concise description and relevant tags.
--   **Inputs:** Base64 encoded JPEG image data.
--   **Outputs:** An object containing the image `description`, `tags` (array of strings), and the `modelUsed` for analysis.
--   This tool handles all direct interaction with the OpenRouter API, including model fallback and retries.
-
-### 2. Image Grouping & Clustering Tool (`services/clusteringService.ts`)
--   **Purpose:** Organizes a collection of images into distinct albums based on their extracted descriptions and tags.
--   **Inputs:** A list of image metadata (including `id`, `description`, `tags`) from the Image Analysis & Tagging Tool.
--   **Outputs:** A list of `Album` objects and any `ungrouped_image_ids`.
--   This tool runs entirely client-side, applying clustering algorithms to group semantically related images.
-
-## Tech Stack
-
-- **Frontend**: React 19.2.0 + TypeScript + Vite
-- **Styling**: Tailwind CSS (via CDN)
-- **AI**: OpenRouter unified API (Gemini, Claude, GPT-4)
-- **Icons**: lucide-react
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ installed
-- OpenRouter API key ([Get one here](https://openrouter.ai/keys))
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone <your-repo-url>
-   cd photosort-ai
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Create `.env.local` file and add your OpenRouter API key:
-   ```bash
-   OPENROUTER_API_KEY=your_openrouter_api_key_here
-   ```
-
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
-
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-## How It Works
-
-1. **Upload**: Drag and drop a folder of photos or select multiple images.
-2. **AI Analysis (Tool 1)**: Each photo is analyzed by the `Image Analysis & Tagging Tool` using OpenRouter's vision models (Gemini, Claude, GPT-4 fallback). It extracts a description and tags.
-3. **Smart Clustering (Tool 2)**: The `Image Grouping & Clustering Tool` then processes the descriptions and tags to group photos into semantic albums.
-4. **Download**: Export organized albums as a ZIP file.
-
-## OpenRouter Configuration
-
-PhotoSort AI uses OpenRouter as a unified gateway to access multiple AI vision models. This provides:
-
-- ✅ Single API key for all models
-- ✅ Automatic fallback handling
-- ✅ Cost optimization (free tier available)
-- ✅ No need to manage multiple SDKs
-
-### Supported Models
-
-The app automatically tries models in this order:
-
-1. `google/gemini-2.0-flash-exp:free` - Free, fast, good quality
-2. `anthropic/claude-3.5-sonnet` - Premium, highly reliable
-3. `openai/gpt-4o` - Industry standard fallback
-
-## Project Structure
-
-```
-photosort-ai/
-├── src/
-│   ├── components/          # React components
-│   │   ├── DropZone.tsx
-│   │   ├── ProcessingView.tsx
-│   │   └── ResultsView.tsx
-│   ├── services/            # Business logic (modular tools)
-│   │   ├── imageUtils.ts    # Image processing utilities
-│   │   ├── imageAnalysisTool.ts  # Tool 1: AI vision API interaction
-│   │   └── clusteringService.ts  # Tool 2: Album organization logic
-│   ├── types.ts             # TypeScript types
-│   └── App.tsx              # Main app component
-├── AI_RULES.md              # Development guidelines
-├── .env.local               # Environment variables (create this)
-└── package.json
-```
-
-## Development
-
-### Build for Production
+1. node.js 20+
+2. Ollama running locally (https://ollama.com)
+3. Pull a vision model (default qwen3.8-ctx8k:latest):
 
 ```bash
-npm run build
+ollama pull qwen3.8-ctx8k:latest
 ```
 
-### Preview Production Build
+If unavailable, pull any vision model and set it in Settings.
+
+## Setup
 
 ```bash
-npm run preview
+cd local-image-tags
+npm install
+npm run dev
 ```
 
-## Cost Optimization
+- UI: http://127.0.0.1:5173
+- API: http://127.0.0.1:8787
+- DB: data/library.db (gitignored)
 
-- Images are automatically resized to 512px before analysis (reduces API costs).
-- Free Gemini model is used by default.
-- Fallback to premium models only when necessary.
-- Sequential processing prevents rate limit issues.
 
-## Troubleshooting
+## Usage
 
-### "API key not configured" error
-- Make sure you've created `.env.local` with your OpenRouter API key.
-- Restart the dev server after adding the key.
+1. Paste a folder path into Folder roots (Windows example: D:\\Photos\\Library) and click Add.
+2. Confirm Ollama health in the sidebar (or Settings).
+3. Click Start to index — images are resized with sharp (max 768px JPEG) and tagged via Ollama.
+4. Search with space-separated tags (AND): blonde beach sunset
+5. Click a thumbnail for tags/caption/path; Reveal in Explorer selects the file on Windows.
 
-### Photos failing to process
-- Check your OpenRouter account has credits/quota.
-- The app will automatically try fallback models.
-- Use the "Retry Failed Photos" button to reprocess errors.
+## Ollama vision API
 
-### Slow processing
-- This is normal - images are processed sequentially to avoid rate limits.
-- The app automatically adjusts speed based on API response times.
+Primary: native POST /api/chat with messages[].images (base64 JPEG).
 
-## Contributing
+Fallback: OpenAI-compatible POST /v1/chat/completions with image_url data URIs.
 
-Contributions are welcome! Please read [AI_RULES.md](AI_RULES.md) for development guidelines.
+Settings (ollamaUrl, ollamaModel, maxImagePx, thumbSize) persist in SQLite settings table.
 
-## License
+## API overview
 
-MIT
+- GET/POST/DELETE /api/roots
+- POST /api/index/start  body: { rootId? }
+- POST /api/index/pause | resume | cancel
+- GET /api/index/status
+- GET /api/search?q=&sort=mtime|size|name&order=asc|desc&limit=&offset=
+- GET /api/tags?prefix=
+- GET /api/images/:id/thumb
+- GET /api/images/:id/file
+- GET /api/images/:id
+- POST /api/images/:id/reveal  (explorer /select on win32)
+- GET/PUT /api/settings
+- GET /api/ollama/health
 
-## Acknowledgments
+## Tests
 
-- Powered by [OpenRouter](https://openrouter.ai)
-- Built with [React](https://react.dev) and [Vite](https://vitejs.dev)
-- Icons by [Lucide](https://lucide.dev)
+Tag post-processing is a pure function in server/src/lib/tags.ts:
+
+```bash
+npm test
+```
+
+## Incremental indexing
+
+Fingerprint path|mtimeMs|sizeBytes — unchanged files skipped on re-index.
+
+## Scripts
+
+- npm run dev — API + Vite
+- npm test — tag unit tests
+- npm run build — build client + server
+- npm start — run compiled server
+
+## Notes / gaps (v1)
+
+- Folder picker is text path input (Windows paste).
+- Thumbs generated on request (HTTP cache headers only).
+- One indexing job at a time.
+- No Docker; run locally next to Ollama.
